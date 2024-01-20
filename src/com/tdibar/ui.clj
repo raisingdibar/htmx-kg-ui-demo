@@ -40,14 +40,15 @@
 (defn page [ctx & body]
   (base
    ctx
-   [:.flex-grow]
-   [:.p-3.mx-auto.max-w-screen-sm.w-full
-    (when (bound? #'csrf/*anti-forgery-token*)
-      {:hx-headers (cheshire/generate-string
-                    {:x-csrf-token csrf/*anti-forgery-token*})})
-    body]
-   [:.flex-grow]
-   [:.flex-grow]))
+   [:.bg-gradient-to-br.from-purple-600.via-pink-500.to-yellow-300.flex-grow.flex.flex-col
+    [:.flex-grow]
+    [:.p-3.mx-auto.max-w-screen-lg.w-full
+     (when (bound? #'csrf/*anti-forgery-token*)
+       {:hx-headers (cheshire/generate-string
+                     {:x-csrf-token csrf/*anti-forgery-token*})})
+     body]
+    [:.flex-grow]
+    [:.flex-grow]]))
 
 (defn on-error [{:keys [status ex] :as ctx}]
   {:status status

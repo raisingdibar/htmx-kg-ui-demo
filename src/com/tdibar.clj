@@ -1,6 +1,5 @@
 (ns com.tdibar
   (:require [com.biffweb :as biff]
-            [com.tdibar.email :as email]
             [com.tdibar.app :as app]
             [com.tdibar.home :as home]
             [com.tdibar.middleware :as mid]
@@ -50,7 +49,6 @@
 
 (def initial-system
   {:biff/plugins #'plugins
-   :biff/send-email #'email/send-email
    :biff/handler #'handler
    :biff/malli-opts #'malli-opts
    :biff.beholder/on-save #'on-save

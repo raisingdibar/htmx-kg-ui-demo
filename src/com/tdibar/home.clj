@@ -1,5 +1,7 @@
 (ns com.tdibar.home
-  (:require [clj-http.client :as http]
+  (:require [clojure.tools.logging :as log]
+            [clojure.pprint :as pprint]
+            [clj-http.client :as http]
             [com.biffweb :as biff]
             [com.tdibar.middleware :as mid]
             [com.tdibar.ui :as ui]
@@ -7,166 +9,72 @@
             [rum.core :as rum]
             [xtdb.api :as xt]))
 
-(def email-disabled-notice
-  [:.text-sm.mt-3.bg-blue-100.rounded.p-2
-   "Until you add API keys for Postmark and reCAPTCHA, we'll print your sign-up "
-   "link to the console. See config.edn."])
-
-(defn home-page [{:keys [recaptcha/site-key params] :as ctx}]
-  (ui/page
-   (assoc ctx ::ui/recaptcha true)
-   (biff/form
-    {:action "/auth/send-link"
-     :id "signup"
-     :hidden {:on-error "/"}}
-    (biff/recaptcha-callback "submitSignup" "signup")
-    [:h2.text-2xl.font-bold (str "Sign up for " settings/app-name)]
-    [:.h-3]
-    [:.flex
-     [:input#email {:name "email"
-                    :type "email"
-                    :autocomplete "email"
-                    :placeholder "Enter your email address"}]
-     [:.w-3]
-     [:button.btn.g-recaptcha
-      (merge (when site-key
-               {:data-sitekey site-key
-                :data-callback "submitSignup"})
-             {:type "submit"})
-      "Sign up"]]
-    (when-some [error (:error params)]
-      [:<>
-       [:.h-1]
-       [:.text-sm.text-red-600
-        (case error
-          "recaptcha" (str "You failed the recaptcha test. Try again, "
-                           "and make sure you aren't blocking scripts from Google.")
-          "invalid-email" "Invalid email. Try again with a different address."
-          "send-failed" (str "We weren't able to send an email to that address. "
-                             "If the problem persists, try another address.")
-          "There was an error.")]])
-    [:.h-1]
-    [:.text-sm "Already have an account? " [:a.link {:href "/signin"} "Sign in"] "."]
-    [:.h-3]
-    biff/recaptcha-disclosure
-    email-disabled-notice)))
-
-(defn link-sent [{:keys [params] :as ctx}]
+(defn home-page [ctx]
   (ui/page
    ctx
-   [:h2.text-xl.font-bold "Check your inbox"]
-   [:p "We've sent a sign-in link to " [:span.font-bold (:email params)] "."]))
+  ;;  [:h2.text-2xl.font-bold [:code.text-green-400 (str "Who is Tyler DiBartolo?")]]
+  ;;  [:div.flex.w-full.max-w-lg.items-center.space-x-2.bg-black.rounded-lg.p-2
+  ;;   [:input.flex.h-10.w-full.border.border-input.px-3.py-2.text-sm.ring-offset-background.file:border-0.file:bg-transparent.file:text-sm.file:font-medium.placeholder:text-muted-foreground.focus-visible:outline-none.focus-visible:ring-2.focus-visible:ring-ring.focus-visible:ring-offset-2.disabled:cursor-not-allowed.disabled:opacity-50.bg-black.text-white.placeholder-gray-400.rounded-lg
+  ;;    {:placeholder "curl https://api.example.com/data" :type "text"}]
+  ;;   [:button.inline-flex.items-center.justify-center.rounded-md.text-sm.font-medium.ring-offset-background.transition-colors.focus-visible:outline-none.focus-visible:ring-2.focus-visible:ring-ring.focus-visible:ring-offset-2.disabled:pointer-events-none.disabled:opacity-50.h-10.px-4.py-2.bg-gray-800.text-white
+  ;;    {:hx-get "/describe"
+  ;;     :hx-target "#sparql-response"
+  ;;     :hx-swap "innerHTML"}
+  ;;    [:svg.h-4.w-4 {:stroke "currentColor"
+  ;;                   :fill "none"
+  ;;                   :stroke-linejoin "round"
+  ;;                   :width "24"
+  ;;                   :xmlns "http://www.w3.org/2000/svg"
+  ;;                   :stroke-linecap "round"
+  ;;                   :stroke-width "2"
+  ;;                   :viewBox "0 0 24 24"
+  ;;                   :height "24"}
+  ;;     [:polygon {:points "5 3 19 12 5 21 5 3"}]]]]
+   
+   [:div.bg-black.bg-opacity-90.text-green-400.p-6.rounded-lg;;.w-full.max-w-lg
+    [:div.flex.justify-between.items-center
+     [:div.flex.gap-2.text-red-500
+      [:div.w-3.h-3.rounded-full.bg-red-500]
+      [:div.w-3.h-3.rounded-full.bg-yellow-500]
+      [:div.w-3.h-3.rounded-full.bg-green-500]]
+     [:p.text-sm "~/🐇" ]
+      [:button.inline-flex.items-center.justify-center.rounded-md.text-sm.font-medium.ring-offset-background.transition-colors.focus-visible:outline-none.focus-visible:ring-2.focus-visible:ring-ring.focus-visible:ring-offset-2.disabled:pointer-events-none.disabled:opacity-50.h-10.px-4.py-2.bg-green-500.text-white
+       {:hx-get "/describe"
+        :hx-target "#sparql-response"
+        :hx-swap "innerHTML"}
+       [:svg.h-4.w-4 {:stroke "currentColor"
+                      :fill "none"
+                      :stroke-linejoin "round"
+                      :width "24"
+                      :xmlns "http://www.w3.org/2000/svg"
+                      :stroke-linecap "round"
+                      :stroke-width "2"
+                      :viewBox "0 0 24 24"
+                      :height "24"}
+        [:polygon {:points "5 3 19 12 5 21 5 3"}]]]]
+     
+     [:font-mono.mt-4
+      [:div 
+       [:span "$ curl -X GET " 
+        [:a {:href "https://tylerdibartolo.com/api/describe"} 
+         [:span.undeline.decoration-white "tylerdibartolo.com/api/describe"]]]]
+      [:div#sparql-response.whitespace-pre-wrap]]]
+   
+   ))
 
-(defn verify-email-page [{:keys [params] :as ctx}]
-  (ui/page
-   ctx
-   [:h2.text-2xl.font-bold (str "Sign up for " settings/app-name)]
-   [:.h-3]
-   (biff/form
-    {:action "/auth/verify-link"
-     :hidden {:token (:token params)}}
-    [:div [:label {:for "email"}
-           "It looks like you opened this link on a different device or browser than the one "
-           "you signed up on. For verification, please enter the email you signed up with:"]]
-    [:.h-3]
-    [:.flex
-     [:input#email {:name "email" :type "email"
-                    :placeholder "Enter your email address"}]
-     [:.w-3]
-     [:button.btn {:type "submit"}
-      "Sign in"]])
-   (when-some [error (:error params)]
-     [:.h-1]
-     [:.text-sm.text-red-600
-      (case error
-        "incorrect-email" "Incorrect email address. Try again."
-        "There was an error.")])))
+(def jtd-describe
+  "@prefix ex:     <http://example.org/> .\n@prefix foaf:   <http://xmlns.com/foaf/0.1/> .\n@prefix org:    <http://example.org/organizations/> .\n@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .\n@prefix schema: <http://schema.org/> .\n@prefix skill:  <http://example.org/skills/> .\n\nex:TylerDiBartolo  rdf:type  foaf:Person;\n        ex:ethnicity         \"Italian-American\";\n        ex:generation        \"second\";\n        skill:hasExperience  ex:SalesConsulting , ex:SoftwareEngineering , ex:ProductManagement , ex:UXDesign;\n        skill:isSkilledIn    skill:IBMCloud , skill:UML , skill:Jira , skill:RDF , skill:Confluence , skill:Git , skill:Python , skill:AWS , skill:Clojure , skill:Java;\n        ex:workedAt          org:WarnerBrosDiscovery , org:IBM;\n        schema:interestedIn  ex:KnowledgeManagement , ex:Clojure , ex:TechnicalWriting , ex:JSONLD , ex:SymbolicAI , ex:SoftwareDesign , ex:DataArchitecture;\n        foaf:birthPlace      ex:BrooklynNY;\n        foaf:name            \"Tyler DiBartolo\" .\n")
 
-(defn signin-page [{:keys [recaptcha/site-key params] :as ctx}]
-  (ui/page
-   (assoc ctx ::ui/recaptcha true)
-   (biff/form
-    {:action "/auth/send-code"
-     :id "signin"
-     :hidden {:on-error "/signin"}}
-    (biff/recaptcha-callback "submitSignin" "signin")
-    [:h2.text-2xl.font-bold "Sign in to " settings/app-name]
-    [:.h-3]
-    [:.flex
-     [:input#email {:name "email"
-                    :type "email"
-                    :autocomplete "email"
-                    :placeholder "Enter your email address"}]
-     [:.w-3]
-     [:button.btn.g-recaptcha
-      (merge (when site-key
-               {:data-sitekey site-key
-                :data-callback "submitSignin"})
-             {:type "submit"})
-      "Sign in"]]
-    (when-some [error (:error params)]
-      [:<>
-       [:.h-1]
-       [:.text-sm.text-red-600
-        (case error
-          "recaptcha" (str "You failed the recaptcha test. Try again, "
-                           "and make sure you aren't blocking scripts from Google.")
-          "invalid-email" "Invalid email. Try again with a different address."
-          "send-failed" (str "We weren't able to send an email to that address. "
-                             "If the problem persists, try another address.")
-          "invalid-link" "Invalid or expired link. Sign in to get a new link."
-          "not-signed-in" "You must be signed in to view that page."
-          "There was an error.")]])
-    [:.h-1]
-    [:.text-sm "Don't have an account yet? " [:a.link {:href "/"} "Sign up"] "."]
-    [:.h-3]
-    biff/recaptcha-disclosure
-    email-disabled-notice)))
+(defn get-sparql [{:keys [session params] :as ctx}] 
+  (biff/render [:div [:br] jtd-describe]))
 
-(defn enter-code-page [{:keys [recaptcha/site-key params] :as ctx}]
-  (ui/page
-   (assoc ctx ::ui/recaptcha true)
-   (biff/form
-    {:action "/auth/verify-code"
-     :id "code-form"
-     :hidden {:email (:email params)}}
-    (biff/recaptcha-callback "submitCode" "code-form")
-    [:div [:label {:for "code"} "Enter the 6-digit code that we sent to "
-           [:span.font-bold (:email params)]]]
-    [:.h-1]
-    [:.flex
-     [:input#code {:name "code" :type "text"}]
-     [:.w-3]
-     [:button.btn.g-recaptcha
-      (merge (when site-key
-               {:data-sitekey site-key
-                :data-callback "submitCode"})
-             {:type "submit"})
-      "Sign in"]])
-   (when-some [error (:error params)]
-     [:.h-1]
-     [:.text-sm.text-red-600
-      (case error
-        "invalid-code" "Invalid code."
-        "There was an error.")])
-   [:.h-3]
-   (biff/form
-    {:action "/auth/send-code"
-     :id "signin"
-     :hidden {:email (:email params)
-              :on-error "/signin"}}
-    (biff/recaptcha-callback "submitSignin" "signin")
-    [:button.link.g-recaptcha
-     (merge (when site-key
-              {:data-sitekey site-key
-               :data-callback "submitSignin"})
-            {:type "submit"})
-     "Send another code"])))
+(defn get-sparql-api [ctx]
+  (log/info (pprint/pprint ctx))
+  {:status 200
+   :body jtd-describe
+   :headers {"Content-Type" "application/x-turtle; charset=UTF-8"}})
 
 (def plugin
-  {:routes [["" {:middleware [mid/wrap-redirect-signed-in]}
-             ["/"                  {:get home-page}]]
-            ["/link-sent"          {:get link-sent}]
-            ["/verify-link"        {:get verify-email-page}]
-            ["/signin"             {:get signin-page}]
-            ["/verify-code"        {:get enter-code-page}]]})
+  {:routes [["/" {:get home-page}]
+            ["/describe" {:get get-sparql}]]
+   :api-routes [["/api/describe" {:get get-sparql-api}]]})
